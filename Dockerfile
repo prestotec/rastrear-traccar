@@ -6,6 +6,4 @@ RUN set -ex && \
 
 ENTRYPOINT ["java", "-Xms512m", "-Xmx512m", "-Djava.net.preferIPv4Stack=true"]
 
-ADD target/tracker-server.jar tracker-server.jar
-
 CMD ["-jar", "tracker-server.jar", "conf/traccar.xml"]
