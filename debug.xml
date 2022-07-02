@@ -7,10 +7,12 @@
     <entry key='config.default'>./setup/default.xml</entry>
 
     <entry key='web.path'>./traccar-web/web</entry>
+    <entry key='web.sanitize'>false</entry>
     <entry key='web.debug'>true</entry>
     <entry key='web.console'>true</entry>
 
     <entry key='logger.console'>true</entry>
+    <entry key='logger.queries'>true</entry>
 
     <entry key='database.driver'>org.h2.Driver</entry>
     <entry key='database.url'>jdbc:h2:./target/database</entry>
@@ -19,5 +21,8 @@
 
     <entry key='atrack.custom'>true</entry>
     <entry key='intellitrac.port'>6037</entry>
+
+    <!--<entry key='broadcast.address'>230.0.0.0</entry>
+    <entry key='broadcast.port'>5000</entry>-->
 
 </properties>

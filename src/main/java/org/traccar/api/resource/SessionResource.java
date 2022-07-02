@@ -15,15 +15,19 @@
  */
 package org.traccar.api.resource;
 
-import org.traccar.Context;
 import org.traccar.api.BaseResource;
+import org.traccar.api.security.LoginService;
 import org.traccar.helper.DataConverter;
 import org.traccar.helper.ServletHelper;
 import org.traccar.helper.LogAction;
 import org.traccar.model.User;
 import org.traccar.storage.StorageException;
+import org.traccar.storage.query.Columns;
+import org.traccar.storage.query.Condition;
+import org.traccar.storage.query.Request;
 
 import javax.annotation.security.PermitAll;
+import javax.inject.Inject;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -32,6 +36,7 @@ import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
@@ -51,6 +56,9 @@ public class SessionResource extends BaseResource {
     public static final String USER_COOKIE_KEY = "user";
     public static final String PASS_COOKIE_KEY = "password";
 
+    @Inject
+    private LoginService loginService;
+
     @javax.ws.rs.core.Context
     private HttpServletRequest request;
 
@@ -59,10 +67,10 @@ public class SessionResource extends BaseResource {
     public User get(@QueryParam("token") String token) throws StorageException, UnsupportedEncodingException {
 
         if (token != null) {
-            User user = Context.getUsersManager().getUserByToken(token);
+            User user = loginService.login(token);
             if (user != null) {
-                Context.getPermissionsManager().checkUserEnabled(user.getId());
                 request.getSession().setAttribute(USER_ID_KEY, user.getId());
+                LogAction.login(user.getId(), ServletHelper.retrieveRemoteAddress(request));
                 return user;
             }
         }
@@ -86,32 +94,42 @@ public class SessionResource extends BaseResource {
                 }
             }
             if (email != null && password != null) {
-                User user = Context.getPermissionsManager().login(email, password);
+                User user = loginService.login(email, password);
                 if (user != null) {
-                    Context.getPermissionsManager().checkUserEnabled(user.getId());
                     request.getSession().setAttribute(USER_ID_KEY, user.getId());
+                    LogAction.login(user.getId(), ServletHelper.retrieveRemoteAddress(request));
                     return user;
                 }
             }
 
         } else {
 
-            Context.getPermissionsManager().checkUserEnabled(userId);
-            return Context.getPermissionsManager().getUser(userId);
+            return permissionsService.getUser(userId);
 
         }
 
         throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).build());
     }
 
+    @Path("{id}")
+    @GET
+    public User get(@PathParam("id") long userId) throws StorageException {
+        permissionsService.checkAdmin(getUserId());
+        User user = storage.getObject(User.class, new Request(
+                new Columns.All(), new Condition.Equals("id", "id", userId)));
+        request.getSession().setAttribute(USER_ID_KEY, user.getId());
+        LogAction.login(user.getId(), ServletHelper.retrieveRemoteAddress(request));
+        return user;
+    }
+
     @PermitAll
     @POST
     public User add(
             @FormParam("email") String email, @FormParam("password") String password) throws StorageException {
-        User user = Context.getPermissionsManager().login(email, password);
+        User user = loginService.login(email, password);
         if (user != null) {
             request.getSession().setAttribute(USER_ID_KEY, user.getId());
-            LogAction.login(user.getId());
+            LogAction.login(user.getId(), ServletHelper.retrieveRemoteAddress(request));
             return user;
         } else {
             LogAction.failedLogin(ServletHelper.retrieveRemoteAddress(request));
@@ -121,7 +139,7 @@ public class SessionResource extends BaseResource {
 
     @DELETE
     public Response remove() {
-        LogAction.logout(getUserId());
+        LogAction.logout(getUserId(), ServletHelper.retrieveRemoteAddress(request));
         request.getSession().removeAttribute(USER_ID_KEY);
         return Response.noContent().build();
     }

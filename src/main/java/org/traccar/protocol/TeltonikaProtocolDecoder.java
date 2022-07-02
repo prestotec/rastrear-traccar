@@ -20,8 +20,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import org.traccar.BaseProtocolDecoder;
-import org.traccar.Context;
-import org.traccar.DeviceSession;
+import org.traccar.session.DeviceSession;
 import org.traccar.NetworkMessage;
 import org.traccar.Protocol;
 import org.traccar.config.Keys;
@@ -55,7 +54,11 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
     public TeltonikaProtocolDecoder(Protocol protocol, boolean connectionless) {
         super(protocol);
         this.connectionless = connectionless;
-        this.extended = Context.getConfig().getBoolean(Keys.PROTOCOL_EXTENDED.withPrefix(getProtocolName()));
+    }
+
+    @Override
+    protected void init() {
+        this.extended = getConfig().getBoolean(Keys.PROTOCOL_EXTENDED.withPrefix(getProtocolName()));
     }
 
     private void parseIdentification(Channel channel, SocketAddress remoteAddress, ByteBuf buf) {
@@ -116,7 +119,8 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
         return printable;
     }
 
-    private void decodeSerial(Channel channel, SocketAddress remoteAddress, Position position, ByteBuf buf) {
+    private void decodeSerial(
+            Channel channel, SocketAddress remoteAddress, DeviceSession deviceSession, Position position, ByteBuf buf) {
 
         getLastLocation(position, null);
 
@@ -145,10 +149,9 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
                             channel, remoteAddress, photoId,
                             photo.writerIndex(), Math.min(IMAGE_PACKET_MAX, photo.writableBytes()));
                 } else {
-                    String uniqueId = Context.getIdentityManager().getById(position.getDeviceId()).getUniqueId();
                     photos.remove(photoId);
                     try {
-                        position.set(Position.KEY_IMAGE, Context.getMediaManager().writeFile(uniqueId, photo, "jpg"));
+                        position.set(Position.KEY_IMAGE, writeMediaFile(deviceSession.getUniqueId(), photo, "jpg"));
                     } finally {
                         photo.release();
                     }
@@ -360,9 +363,9 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
         long cid = position.getLong(Position.PREFIX_IO + 205);
         int lac = position.getInteger(Position.PREFIX_IO + 206);
         if (cid != 0 && lac != 0) {
-            CellTower cellTower = CellTower.fromLacCid(lac, cid);
+            CellTower cellTower = CellTower.fromLacCid(getConfig(), lac, cid);
             long operator = position.getInteger(Position.KEY_OPERATOR);
-            if (operator != 0) {
+            if (operator >= 1000) {
                 cellTower.setOperator(operator);
             }
             position.setNetwork(new Network(cellTower));
@@ -422,7 +425,8 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
                 }
 
                 if (BitUtil.check(locationMask, 5)) {
-                    CellTower cellTower = CellTower.fromLacCid(buf.readUnsignedShort(), buf.readUnsignedShort());
+                    CellTower cellTower = CellTower.fromLacCid(
+                            getConfig(), buf.readUnsignedShort(), buf.readUnsignedShort());
 
                     if (BitUtil.check(locationMask, 6)) {
                         cellTower.setSignalStrength((int) buf.readUnsignedByte());
@@ -597,7 +601,7 @@ public class TeltonikaProtocolDecoder extends BaseProtocolDecoder {
                             ByteBufUtil.hexDump(buf.readSlice(length)));
                 }
             } else if (codec == CODEC_12) {
-                decodeSerial(channel, remoteAddress, position, buf);
+                decodeSerial(channel, remoteAddress, deviceSession, position, buf);
             } else {
                 decodeLocation(position, buf, codec);
             }

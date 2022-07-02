@@ -9,13 +9,17 @@ public class Gt06ProtocolDecoderTest extends ProtocolTest {
     @Test
     public void testDecode() throws Exception {
 
-        var decoder = new Gt06ProtocolDecoder(null);
+        var decoder = inject(new Gt06ProtocolDecoder(null));
 
         verifyNull(decoder, binary(
                 "787805120099abec0d0a"));
 
         verifyNull(decoder, binary(
                 "78780D01086471700328358100093F040D0A"));
+
+        verifyAttribute(decoder, binary(
+                "7878241216040e102c22cf00915ffb04c6016300195a02d402283b00753f400571040001dda4880d0a"),
+                Position.KEY_IGNITION, false);
 
         verifyNotNull(decoder, binary(
                 "787831241603060c231e000194620213ee00606a3413ee0060692e000000000000000000000000000000000000000000003a0cb70d0a"));

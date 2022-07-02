@@ -15,10 +15,15 @@
  */
 package org.traccar.api.resource;
 
-import org.traccar.Context;
 import org.traccar.api.BaseResource;
+import org.traccar.helper.model.PositionUtil;
+import org.traccar.model.Device;
 import org.traccar.model.Position;
+import org.traccar.model.UserRestrictions;
 import org.traccar.storage.StorageException;
+import org.traccar.storage.query.Columns;
+import org.traccar.storage.query.Condition;
+import org.traccar.storage.query.Request;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -28,7 +33,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -43,23 +47,25 @@ public class PositionResource extends BaseResource {
             @QueryParam("from") Date from, @QueryParam("to") Date to)
             throws StorageException {
         if (!positionIds.isEmpty()) {
-            ArrayList<Position> positions = new ArrayList<>();
-            for (Long positionId : positionIds) {
-                Position position = Context.getDataManager().getObject(Position.class, positionId);
-                Context.getPermissionsManager().checkDevice(getUserId(), position.getDeviceId());
+            var positions = new ArrayList<Position>();
+            for (long positionId : positionIds) {
+                Position position = storage.getObject(Position.class, new Request(
+                        new Columns.All(), new Condition.Equals("id", "id", positionId)));
+                permissionsService.checkPermission(Device.class, getUserId(), position.getDeviceId());
                 positions.add(position);
             }
             return positions;
-        } else if (deviceId == 0) {
-            return Context.getDeviceManager().getInitialState(getUserId());
-        } else {
-            Context.getPermissionsManager().checkDevice(getUserId(), deviceId);
+        } else if (deviceId > 0) {
+            permissionsService.checkPermission(Device.class, getUserId(), deviceId);
             if (from != null && to != null) {
-                Context.getPermissionsManager().checkDisableReports(getUserId());
-                return Context.getDataManager().getPositions(deviceId, from, to);
+                permissionsService.checkRestriction(getUserId(), UserRestrictions::getDisableReports);
+                return PositionUtil.getPositions(storage, deviceId, from, to);
             } else {
-                return Collections.singleton(Context.getDeviceManager().getLastPosition(deviceId));
+                return storage.getObjects(Position.class, new Request(
+                        new Columns.All(), new Condition.LatestPositions(deviceId)));
             }
+        } else {
+            return PositionUtil.getLatestPositions(storage, getUserId());
         }
     }
 

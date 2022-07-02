@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2016 Anton Tananaev (anton@traccar.org)
+ * Copyright 2015 - 2022 Anton Tananaev (anton@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@ package org.traccar.api.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.traccar.Context;
-import org.traccar.Main;
 import org.traccar.api.resource.SessionResource;
 import org.traccar.database.StatisticsManager;
 import org.traccar.helper.DataConverter;
@@ -26,11 +24,13 @@ import org.traccar.model.User;
 import org.traccar.storage.StorageException;
 
 import javax.annotation.security.PermitAll;
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ResourceInfo;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import java.lang.reflect.Method;
@@ -43,6 +43,7 @@ public class SecurityRequestFilter implements ContainerRequestFilter {
     public static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String WWW_AUTHENTICATE = "WWW-Authenticate";
     public static final String BASIC_REALM = "Basic realm=\"api\"";
+    public static final String BEARER_PREFIX = "Bearer ";
     public static final String X_REQUESTED_WITH = "X-Requested-With";
     public static final String XML_HTTP_REQUEST = "XMLHttpRequest";
 
@@ -55,11 +56,17 @@ public class SecurityRequestFilter implements ContainerRequestFilter {
         return null;
     }
 
-    @javax.ws.rs.core.Context
+    @Context
     private HttpServletRequest request;
 
-    @javax.ws.rs.core.Context
+    @Context
     private ResourceInfo resourceInfo;
+
+    @Inject
+    private LoginService loginService;
+
+    @Inject
+    private StatisticsManager statisticsManager;
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
@@ -76,10 +83,15 @@ public class SecurityRequestFilter implements ContainerRequestFilter {
             if (authHeader != null) {
 
                 try {
-                    String[] auth = decodeBasicAuth(authHeader);
-                    User user = Context.getPermissionsManager().login(auth[0], auth[1]);
+                    User user;
+                    if (authHeader.startsWith(BEARER_PREFIX)) {
+                        user = loginService.login(authHeader.substring(BEARER_PREFIX.length()));
+                    } else {
+                        String[] auth = decodeBasicAuth(authHeader);
+                        user = loginService.login(auth[0], auth[1]);
+                    }
                     if (user != null) {
-                        Main.getInjector().getInstance(StatisticsManager.class).registerRequest(user.getId());
+                        statisticsManager.registerRequest(user.getId());
                         securityContext = new UserSecurityContext(new UserPrincipal(user.getId()));
                     }
                 } catch (StorageException e) {
@@ -90,8 +102,7 @@ public class SecurityRequestFilter implements ContainerRequestFilter {
 
                 Long userId = (Long) request.getSession().getAttribute(SessionResource.USER_ID_KEY);
                 if (userId != null) {
-                    Context.getPermissionsManager().checkUserEnabled(userId);
-                    Main.getInjector().getInstance(StatisticsManager.class).registerRequest(userId);
+                    statisticsManager.registerRequest(userId);
                     securityContext = new UserSecurityContext(new UserPrincipal(userId));
                 }
 

@@ -9,10 +9,13 @@ public class TeltonikaProtocolDecoderTest extends ProtocolTest {
     @Test
     public void testDecode() throws Exception {
 
-        var decoder = new TeltonikaProtocolDecoder(null, false);
+        var decoder = inject(new TeltonikaProtocolDecoder(null, false));
 
         verifyNull(decoder, binary(
                 "000F313233343536373839303132333435"));
+
+        verifyPositions(decoder, binary(
+                "00000000000000da08030000017fcedf499600280431be0eded45d0038012d100000fa100901000200b300b4004501500415034702fa00054232a1180000cd3b2fce281d43001f02c700000006f10000a029000000017fcedea99600280432070eded3dd00380046130009000f0801010200b300b400450150051502470205423276180009cd3b2fce281d43001f02c700000027f10000a0290000000179d50853180027f65d3f0ed67212001500f1110061000f0801010200b300b4004501500515034702054234f4180061cd53d1ce28c043003e02c700000147f1000000290003000052cb"));
 
         verifyPositions(decoder, binary(
                 "00000000000000b98e0200000179555c7bf8010b3a1cfbebc142b00000000000000000ec000f000900f00000150000c80000450200710100740001070100fa0000ec01000500b500000018000000430d560044000000190000000100f1000000000000000000000179555c83c8010b3a1cfbebc142b0000000000000000185000f000900f00000150000c80000450200710100740001070100fa00018511000500b500000018000000430d560044000000190000000100f100000000000000000200003251"));
@@ -124,7 +127,7 @@ public class TeltonikaProtocolDecoderTest extends ProtocolTest {
     @Test
     public void testDecodePhoto() throws Exception {
 
-        var decoder = new TeltonikaProtocolDecoder(null, false);
+        var decoder = inject(new TeltonikaProtocolDecoder(null, false));
 
         verifyNull(decoder, binary(
                 "000F313233343536373839303132333435"));
@@ -144,7 +147,7 @@ public class TeltonikaProtocolDecoderTest extends ProtocolTest {
     @Test
     public void testDecodeConnectionless() throws Exception {
 
-        var decoder = new TeltonikaProtocolDecoder(null, true);
+        var decoder = inject(new TeltonikaProtocolDecoder(null, true));
 
         verifyPositions(decoder, false, binary(
                 "0049cafe0122000f33353734353430373237313339373508010000015d3766f6a800003eef961ec6215e0063006d09003100070401000200f001c8000242381c18003201c7000000e10001"));

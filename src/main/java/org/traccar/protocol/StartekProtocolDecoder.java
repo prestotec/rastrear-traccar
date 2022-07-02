@@ -17,7 +17,7 @@ package org.traccar.protocol;
 
 import io.netty.channel.Channel;
 import org.traccar.BaseProtocolDecoder;
-import org.traccar.DeviceSession;
+import org.traccar.session.DeviceSession;
 import org.traccar.Protocol;
 import org.traccar.helper.BitUtil;
 import org.traccar.helper.Parser;
@@ -42,7 +42,6 @@ public class StartekProtocolDecoder extends BaseProtocolDecoder {
             .number("d+,")                       // length
             .number("(d+),")                     // imei
             .expression("(.+)")                  // content
-            .number("xx")                        // checksum
             .compile();
 
     private static final Pattern PATTERN_POSITION = new PatternBuilder()
@@ -123,6 +122,9 @@ public class StartekProtocolDecoder extends BaseProtocolDecoder {
         }
 
         String content = parser.next();
+        if (content.charAt(content.length() - 2 - 1) != '|') {
+            content = content.substring(0, content.length() - 2);
+        }
         if (content.length() < 100) {
 
             Position position = new Position(getProtocolName());

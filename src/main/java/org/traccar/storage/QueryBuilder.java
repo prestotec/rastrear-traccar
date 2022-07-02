@@ -16,9 +16,11 @@
 package org.traccar.storage;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.traccar.Context;
+import org.traccar.config.Config;
+import org.traccar.config.Keys;
 import org.traccar.model.Permission;
 
 import javax.sql.DataSource;
@@ -40,9 +42,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("UnusedReturnValue")
 public final class QueryBuilder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(QueryBuilder.class);
+
+    private final Config config;
+    private final ObjectMapper objectMapper;
 
     private final Map<String, List<Integer>> indexMap = new HashMap<>();
     private Connection connection;
@@ -50,7 +56,11 @@ public final class QueryBuilder {
     private final String query;
     private final boolean returnGeneratedKeys;
 
-    private QueryBuilder(DataSource dataSource, String query, boolean returnGeneratedKeys) throws SQLException {
+    private QueryBuilder(
+            Config config, DataSource dataSource, ObjectMapper objectMapper,
+            String query, boolean returnGeneratedKeys) throws SQLException {
+        this.config = config;
+        this.objectMapper = objectMapper;
         this.query = query;
         this.returnGeneratedKeys = returnGeneratedKeys;
         if (query != null) {
@@ -125,13 +135,15 @@ public final class QueryBuilder {
         return parsedQuery.toString();
     }
 
-    public static QueryBuilder create(DataSource dataSource, String query) throws SQLException {
-        return new QueryBuilder(dataSource, query, false);
+    public static QueryBuilder create(
+            Config config, DataSource dataSource, ObjectMapper objectMapper, String query) throws SQLException {
+        return new QueryBuilder(config, dataSource, objectMapper, query, false);
     }
 
     public static QueryBuilder create(
-            DataSource dataSource, String query, boolean returnGeneratedKeys) throws SQLException {
-        return new QueryBuilder(dataSource, query, returnGeneratedKeys);
+            Config config, DataSource dataSource, ObjectMapper objectMapper, String query,
+            boolean returnGeneratedKeys) throws SQLException {
+        return new QueryBuilder(config, dataSource, objectMapper, query, returnGeneratedKeys);
     }
 
     private List<Integer> indexes(String name) {
@@ -294,7 +306,7 @@ public final class QueryBuilder {
                     } else if (method.getReturnType().equals(byte[].class)) {
                         setBlob(name, (byte[]) method.invoke(object));
                     } else {
-                        setString(name, Context.getObjectMapper().writeValueAsString(method.invoke(object)));
+                        setString(name, objectMapper.writeValueAsString(method.invoke(object)));
                     }
                 } catch (IllegalAccessException | InvocationTargetException | JsonProcessingException error) {
                     LOGGER.warn("Get property error", error);
@@ -307,15 +319,6 @@ public final class QueryBuilder {
 
     private interface ResultSetProcessor<T> {
         void process(T object, ResultSet resultSet) throws SQLException;
-    }
-
-    public <T> T executeQuerySingle(Class<T> clazz) throws SQLException {
-        List<T> result = executeQuery(clazz);
-        if (!result.isEmpty()) {
-            return result.iterator().next();
-        } else {
-            return null;
-        }
     }
 
     private <T> void addProcessors(
@@ -386,12 +389,18 @@ public final class QueryBuilder {
                 String value = resultSet.getString(name);
                 if (value != null && !value.isEmpty()) {
                     try {
-                        method.invoke(object, Context.getObjectMapper().readValue(value, parameterType));
+                        method.invoke(object, objectMapper.readValue(value, parameterType));
                     } catch (InvocationTargetException | IllegalAccessException | IOException error) {
                         LOGGER.warn("Set property error", error);
                     }
                 }
             });
+        }
+    }
+
+    private void logQuery() {
+        if (config.getBoolean(Keys.LOGGER_QUERIES)) {
+            LOGGER.info(query);
         }
     }
 
@@ -401,6 +410,8 @@ public final class QueryBuilder {
         if (query != null) {
 
             try {
+
+                logQuery();
 
                 try (ResultSet resultSet = statement.executeQuery()) {
 
@@ -457,6 +468,7 @@ public final class QueryBuilder {
 
         if (query != null) {
             try {
+                logQuery();
                 statement.execute();
                 if (returnGeneratedKeys) {
                     ResultSet resultSet = statement.getGeneratedKeys();
@@ -476,6 +488,7 @@ public final class QueryBuilder {
         List<Permission> result = new LinkedList<>();
         if (query != null) {
             try {
+                logQuery();
                 try (ResultSet resultSet = statement.executeQuery()) {
                     ResultSetMetaData resultMetaData = resultSet.getMetaData();
                     while (resultSet.next()) {

@@ -15,11 +15,15 @@
  */
 package org.traccar;
 
+import com.google.inject.Injector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.helper.ClassScanner;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ConnectException;
@@ -29,17 +33,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ServerManager {
+@Singleton
+public class ServerManager implements LifecycleObject {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerManager.class);
 
     private final List<TrackerConnector> connectorList = new LinkedList<>();
     private final Map<String, BaseProtocol> protocolList = new ConcurrentHashMap<>();
 
-    public ServerManager() throws IOException, URISyntaxException, ReflectiveOperationException {
+    @Inject
+    public ServerManager(
+            Injector injector, Config config) throws IOException, URISyntaxException, ReflectiveOperationException {
         for (Class<?> protocolClass : ClassScanner.findSubclasses(BaseProtocol.class, "org.traccar.protocol")) {
-            if (Context.getConfig().hasKey(Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(protocolClass)))) {
-                BaseProtocol protocol = (BaseProtocol) protocolClass.getDeclaredConstructor().newInstance();
+            if (config.hasKey(Keys.PROTOCOL_PORT.withPrefix(BaseProtocol.nameFromClass(protocolClass)))) {
+                BaseProtocol protocol = (BaseProtocol) injector.getInstance(protocolClass);
                 connectorList.addAll(protocol.getConnectorList());
                 protocolList.put(protocol.getName(), protocol);
             }
@@ -50,6 +57,7 @@ public class ServerManager {
         return protocolList.get(name);
     }
 
+    @Override
     public void start() throws Exception {
         for (TrackerConnector connector: connectorList) {
             try {
@@ -62,11 +70,15 @@ public class ServerManager {
         }
     }
 
-    public void stop() {
-        for (TrackerConnector connector: connectorList) {
-            connector.stop();
+    @Override
+    public void stop() throws Exception {
+        try {
+            for (TrackerConnector connector : connectorList) {
+                connector.stop();
+            }
+        } finally {
+            GlobalTimer.release();
         }
-        GlobalTimer.release();
     }
 
 }

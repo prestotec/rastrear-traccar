@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 - 2019 Anton Tananaev (anton@traccar.org)
+ * Copyright 2016 - 2022 Anton Tananaev (anton@traccar.org)
  * Copyright 2017 Andrey Kunitsyn (andrey@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,29 +16,32 @@
  */
 package org.traccar.handler.events;
 
-import java.util.Collections;
-import java.util.Map;
-
 import io.netty.channel.ChannelHandler;
-import org.traccar.database.DeviceManager;
-import org.traccar.database.IdentityManager;
+import org.traccar.helper.model.PositionUtil;
 import org.traccar.model.Device;
-import org.traccar.model.DeviceState;
 import org.traccar.model.Event;
 import org.traccar.model.Position;
-import org.traccar.reports.ReportUtils;
-import org.traccar.reports.model.TripsConfig;
+import org.traccar.reports.common.TripsConfig;
+import org.traccar.session.ConnectionManager;
+import org.traccar.session.DeviceState;
+import org.traccar.session.cache.CacheManager;
+
+import javax.inject.Inject;
+import java.util.Collections;
+import java.util.Map;
 
 @ChannelHandler.Sharable
 public class MotionEventHandler extends BaseEventHandler {
 
-    private final IdentityManager identityManager;
-    private final DeviceManager deviceManager;
+    private final CacheManager cacheManager;
+    private final ConnectionManager connectionManager;
     private final TripsConfig tripsConfig;
 
-    public MotionEventHandler(IdentityManager identityManager, DeviceManager deviceManager, TripsConfig tripsConfig) {
-        this.identityManager = identityManager;
-        this.deviceManager = deviceManager;
+    @Inject
+    public MotionEventHandler(
+            CacheManager cacheManager, ConnectionManager connectionManager, TripsConfig tripsConfig) {
+        this.cacheManager = cacheManager;
+        this.connectionManager = connectionManager;
         this.tripsConfig = tripsConfig;
     }
 
@@ -86,7 +89,7 @@ public class MotionEventHandler extends BaseEventHandler {
         Position motionPosition = deviceState.getMotionPosition();
         if (motionPosition != null) {
             long motionTime = motionPosition.getFixTime().getTime();
-            double distance = ReportUtils.calculateDistance(motionPosition, position, false);
+            double distance = PositionUtil.calculateDistance(motionPosition, position, false);
             Boolean ignition = null;
             if (tripsConfig.getUseIgnition()
                     && position.getAttributes().containsKey(Position.KEY_IGNITION)) {
@@ -111,24 +114,24 @@ public class MotionEventHandler extends BaseEventHandler {
     protected Map<Event, Position> analyzePosition(Position position) {
 
         long deviceId = position.getDeviceId();
-        Device device = identityManager.getById(deviceId);
+        Device device = cacheManager.getObject(Device.class, deviceId);
         if (device == null) {
             return null;
         }
-        if (!identityManager.isLatestPosition(position)
+        if (!PositionUtil.isLatest(cacheManager, position)
                 || !tripsConfig.getProcessInvalidPositions() && !position.getValid()) {
             return null;
         }
 
         Map<Event, Position> result = null;
-        DeviceState deviceState = deviceManager.getDeviceState(deviceId);
+        DeviceState deviceState = connectionManager.getDeviceState(deviceId);
 
         if (deviceState.getMotionState() == null) {
             deviceState.setMotionState(position.getBoolean(Position.KEY_MOTION));
         } else {
             result = updateMotionState(deviceState, position);
         }
-        deviceManager.setDeviceState(deviceId, deviceState);
+        connectionManager.setDeviceState(deviceId, deviceState);
         return result;
     }
 

@@ -1,9 +1,12 @@
 package org.traccar.handler.events;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import org.junit.Test;
+import org.traccar.BaseTest;
+import org.traccar.config.Config;
+import org.traccar.config.Keys;
+import org.traccar.model.Event;
+import org.traccar.model.Position;
+import org.traccar.session.DeviceState;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -12,13 +15,10 @@ import java.util.Date;
 import java.util.Map;
 import java.util.TimeZone;
 
-import org.junit.Test;
-import org.traccar.BaseTest;
-import org.traccar.config.Config;
-import org.traccar.config.Keys;
-import org.traccar.model.DeviceState;
-import org.traccar.model.Event;
-import org.traccar.model.Position;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class OverspeedEventHandlerTest  extends BaseTest {
 
@@ -61,7 +61,7 @@ public class OverspeedEventHandlerTest  extends BaseTest {
         Event event = events.keySet().iterator().next();
         assertEquals(Event.TYPE_DEVICE_OVERSPEED, event.getType());
         assertEquals(50, event.getDouble("speed"), 0.1);
-        assertEquals(40, event.getDouble(OverspeedEventHandler.ATTRIBUTE_SPEED_LIMIT), 0.1);
+        assertEquals(40, event.getDouble("speedLimit"), 0.1);
         assertEquals(geofenceId, event.getGeofenceId());
 
         assertEquals(notRepeat, deviceState.getOverspeedState());

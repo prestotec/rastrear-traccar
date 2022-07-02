@@ -20,7 +20,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import org.traccar.BaseProtocolDecoder;
-import org.traccar.DeviceSession;
+import org.traccar.session.DeviceSession;
 import org.traccar.NetworkMessage;
 import org.traccar.Protocol;
 import org.traccar.helper.BitUtil;
@@ -443,7 +443,7 @@ public class CastelProtocolDecoder extends BaseProtocolDecoder {
                 decodeStat(position, buf);
 
                 position.setNetwork(new Network(
-                        CellTower.fromLacCid(buf.readUnsignedShortLE(), buf.readUnsignedShortLE())));
+                        CellTower.fromLacCid(getConfig(), buf.readUnsignedShortLE(), buf.readUnsignedShortLE())));
 
                 return position;
 
@@ -499,7 +499,7 @@ public class CastelProtocolDecoder extends BaseProtocolDecoder {
                 buf.readUnsignedByte(); // additional flags
 
                 position.setNetwork(new Network(
-                        CellTower.fromLacCid(buf.readUnsignedShortLE(), buf.readUnsignedShortLE())));
+                        CellTower.fromLacCid(getConfig(), buf.readUnsignedShortLE(), buf.readUnsignedShortLE())));
 
                 positions.add(position);
             }

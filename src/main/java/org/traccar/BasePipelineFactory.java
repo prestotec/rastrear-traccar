@@ -15,6 +15,7 @@
  */
 package org.traccar;
 
+import com.google.inject.Injector;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInboundHandler;
@@ -22,6 +23,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.handler.ComputedAttributesHandler;
 import org.traccar.handler.CopyAttributesHandler;
@@ -54,16 +56,18 @@ import java.util.Map;
 
 public abstract class BasePipelineFactory extends ChannelInitializer<Channel> {
 
+    private final Injector injector;
     private final TrackerConnector connector;
     private final String protocol;
     private int timeout;
 
-    public BasePipelineFactory(TrackerConnector connector, String protocol) {
+    public BasePipelineFactory(TrackerConnector connector, Config config, String protocol) {
+        this.injector = Main.getInjector();
         this.connector = connector;
         this.protocol = protocol;
-        timeout = Context.getConfig().getInteger(Keys.PROTOCOL_TIMEOUT.withPrefix(protocol));
+        timeout = config.getInteger(Keys.PROTOCOL_TIMEOUT.withPrefix(protocol));
         if (timeout == 0) {
-            timeout = Context.getConfig().getInteger(Keys.SERVER_TIMEOUT);
+            timeout = config.getInteger(Keys.SERVER_TIMEOUT);
         }
     }
 
@@ -75,7 +79,7 @@ public abstract class BasePipelineFactory extends ChannelInitializer<Channel> {
     private void addHandlers(ChannelPipeline pipeline, Class<? extends ChannelHandler>... handlerClasses) {
         for (Class<? extends ChannelHandler> handlerClass : handlerClasses) {
             if (handlerClass != null) {
-                pipeline.addLast(Main.getInjector().getInstance(handlerClass));
+                pipeline.addLast(injector.getInstance(handlerClass));
             }
         }
     }
@@ -109,7 +113,9 @@ public abstract class BasePipelineFactory extends ChannelInitializer<Channel> {
         pipeline.addLast(new StandardLoggingHandler(protocol));
 
         addProtocolHandlers(handler -> {
-            if (!(handler instanceof BaseProtocolDecoder || handler instanceof BaseProtocolEncoder)) {
+            if (handler instanceof BaseProtocolDecoder || handler instanceof BaseProtocolEncoder) {
+                injector.injectMembers(handler);
+            } else {
                 if (handler instanceof ChannelInboundHandler) {
                     handler = new WrapperInboundHandler((ChannelInboundHandler) handler);
                 } else {
@@ -144,9 +150,8 @@ public abstract class BasePipelineFactory extends ChannelInitializer<Channel> {
                 AlertEventHandler.class,
                 IgnitionEventHandler.class,
                 MaintenanceEventHandler.class,
-                DriverEventHandler.class);
-
-        pipeline.addLast(new MainEventHandler());
+                DriverEventHandler.class,
+                MainEventHandler.class);
     }
 
 }

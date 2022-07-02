@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 - 2020 Anton Tananaev (anton@traccar.org)
+ * Copyright 2018 - 2022 Anton Tananaev (anton@traccar.org)
  * Copyright 2018 Andrey Kunitsyn (andrey@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,22 +17,21 @@
 package org.traccar.notificators;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.traccar.Context;
+import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.model.Event;
 import org.traccar.model.Position;
 import org.traccar.model.User;
-import org.traccar.notification.NotificationMessage;
 import org.traccar.notification.NotificationFormatter;
 
+import javax.inject.Inject;
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 
-public class NotificatorFirebase extends Notificator {
+public class NotificatorFirebase implements Notificator {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NotificatorFirebase.class);
+    private final NotificationFormatter notificationFormatter;
+    private final Client client;
 
     private final String url;
     private final String key;
@@ -53,23 +52,26 @@ public class NotificatorFirebase extends Notificator {
         private Notification notification;
     }
 
-    public NotificatorFirebase() {
+    @Inject
+    public NotificatorFirebase(Config config, NotificationFormatter notificationFormatter, Client client) {
         this(
-                "https://fcm.googleapis.com/fcm/send",
-                Context.getConfig().getString(Keys.NOTIFICATOR_FIREBASE_KEY));
+                notificationFormatter, client, "https://fcm.googleapis.com/fcm/send",
+                config.getString(Keys.NOTIFICATOR_FIREBASE_KEY));
     }
 
-    protected NotificatorFirebase(String url, String key) {
+    protected NotificatorFirebase(
+            NotificationFormatter notificationFormatter, Client client, String url, String key) {
+        this.notificationFormatter = notificationFormatter;
+        this.client = client;
         this.url = url;
         this.key = key;
     }
 
     @Override
-    public void sendSync(long userId, Event event, Position position) {
-        final User user = Context.getPermissionsManager().getUser(userId);
+    public void send(User user, Event event, Position position) {
         if (user.getAttributes().containsKey("notificationTokens")) {
 
-            NotificationMessage shortMessage = NotificationFormatter.formatMessage(userId, event, position, "short");
+            var shortMessage = notificationFormatter.formatMessage(user, event, position, "short");
 
             Notification notification = new Notification();
             notification.title = shortMessage.getSubject();
@@ -80,24 +82,8 @@ public class NotificatorFirebase extends Notificator {
             message.tokens = user.getString("notificationTokens").split("[, ]");
             message.notification = notification;
 
-            Context.getClient().target(url).request()
-                    .header("Authorization", "key=" + key)
-                    .async().post(Entity.json(message), new InvocationCallback<Object>() {
-                @Override
-                public void completed(Object o) {
-                }
-
-                @Override
-                public void failed(Throwable throwable) {
-                    LOGGER.warn("Firebase notification error", throwable);
-                }
-            });
+            client.target(url).request().header("Authorization", "key=" + key).post(Entity.json(message)).close();
         }
-    }
-
-    @Override
-    public void sendAsync(long userId, Event event, Position position) {
-        sendSync(userId, event, position);
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2016 Anton Tananaev (anton@traccar.org)
+ * Copyright 2015 - 2022 Anton Tananaev (anton@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,22 @@
 package org.traccar.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.traccar.Context;
 
+import javax.inject.Inject;
 import javax.ws.rs.ext.ContextResolver;
-import javax.ws.rs.ext.Provider;
 
-@Provider
 public class ObjectMapperProvider implements ContextResolver<ObjectMapper> {
+
+    private final ObjectMapper objectMapper;
+
+    @Inject
+    public ObjectMapperProvider(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public ObjectMapper getContext(Class<?> type) {
-        return Context.getObjectMapper();
+        return objectMapper;
     }
 
 }

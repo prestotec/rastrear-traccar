@@ -12,6 +12,7 @@
 
     <entry key='web.port'>8082</entry>
     <entry key='web.path'>./web</entry>
+    <entry key='web.sanitize'>true</entry>
     <entry key='web.persistSession'>false</entry>
 
     <entry key='geocoder.enable'>true</entry>
@@ -29,8 +30,6 @@
     <entry key='filter.future'>86400</entry>
 
     <entry key='event.ignoreDuplicateAlerts'>true</entry>
-    <entry key='processing.computedAttributes.enable'>true</entry>
-    <entry key='processing.engineHours.enable'>true</entry>
 
     <entry key='media.path'>./media</entry>
 
@@ -283,5 +282,6 @@
     <entry key='jido.port'>5237</entry>
     <entry key='armoli.port'>5238</entry>
     <entry key='teratrack.port'>5239</entry>
+    <entry key='envotech.port'>5240</entry>
 
 </properties>

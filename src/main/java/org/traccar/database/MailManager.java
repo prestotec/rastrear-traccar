@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 - 2021 Anton Tananaev (anton@traccar.org)
+ * Copyright 2016 - 2022 Anton Tananaev (anton@traccar.org)
  * Copyright 2017 - 2018 Andrey Kunitsyn (andrey@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,13 +16,11 @@
  */
 package org.traccar.database;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.traccar.Context;
-import org.traccar.Main;
+import org.traccar.config.Config;
 import org.traccar.model.User;
 import org.traccar.notification.PropertiesProvider;
 
+import javax.inject.Inject;
 import javax.mail.BodyPart;
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -38,7 +36,14 @@ import java.util.Properties;
 
 public final class MailManager {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MailManager.class);
+    private final Config config;
+    private final StatisticsManager statisticsManager;
+
+    @Inject
+    public MailManager(Config config, StatisticsManager statisticsManager) {
+        this.config = config;
+        this.statisticsManager = statisticsManager;
+    }
 
     private static Properties getProperties(PropertiesProvider provider) {
         Properties properties = new Properties();
@@ -88,28 +93,25 @@ public final class MailManager {
     }
 
     public boolean getEmailEnabled() {
-        return Context.getConfig().hasKey("mail.smtp.host");
+        return config.hasKey("mail.smtp.host");
     }
 
     public void sendMessage(
-            long userId, String subject, String body) throws MessagingException {
-        sendMessage(userId, subject, body, null);
+            User user, String subject, String body) throws MessagingException {
+        sendMessage(user, subject, body, null);
     }
 
     public void sendMessage(
-            long userId, String subject, String body, MimeBodyPart attachment) throws MessagingException {
-        User user = Context.getPermissionsManager().getUser(userId);
-
+            User user, String subject, String body, MimeBodyPart attachment) throws MessagingException {
         Properties properties = null;
-        if (!Context.getConfig().getBoolean("mail.smtp.ignoreUserConfig")) {
+        if (!config.getBoolean("mail.smtp.ignoreUserConfig")) {
             properties = getProperties(new PropertiesProvider(user));
         }
         if (properties == null || !properties.containsKey("mail.smtp.host")) {
-            properties = getProperties(new PropertiesProvider(Context.getConfig()));
+            properties = getProperties(new PropertiesProvider(config));
         }
         if (!properties.containsKey("mail.smtp.host")) {
-            LOGGER.warn("No SMTP configuration found");
-            return;
+            throw new RuntimeException("No SMTP configuration found");
         }
 
         Session session = Session.getInstance(properties);
@@ -139,7 +141,7 @@ public final class MailManager {
         }
 
         try (Transport transport = session.getTransport()) {
-            Main.getInjector().getInstance(StatisticsManager.class).registerMail();
+            statisticsManager.registerMail();
             transport.connect(
                     properties.getProperty("mail.smtp.host"),
                     properties.getProperty("mail.smtp.username"),

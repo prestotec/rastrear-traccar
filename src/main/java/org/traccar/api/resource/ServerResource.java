@@ -15,15 +15,19 @@
  */
 package org.traccar.api.resource;
 
-import org.traccar.Context;
 import org.traccar.api.BaseResource;
+import org.traccar.database.MailManager;
+import org.traccar.geocoder.Geocoder;
+import org.traccar.helper.Log;
 import org.traccar.helper.LogAction;
 import org.traccar.model.Server;
+import org.traccar.model.User;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Columns;
 import org.traccar.storage.query.Request;
 
+import javax.annotation.Nullable;
 import javax.annotation.security.PermitAll;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -34,6 +38,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.TimeZone;
 
 @Path("server")
 @Produces(MediaType.APPLICATION_JSON)
@@ -43,16 +50,28 @@ public class ServerResource extends BaseResource {
     @Inject
     private Storage storage;
 
+    @Inject
+    private MailManager mailManager;
+
+    @Inject
+    @Nullable
+    private Geocoder geocoder;
+
     @PermitAll
     @GET
     public Server get() throws StorageException {
-        return storage.getObject(Server.class, new Request(new Columns.All()));
+        Server server = storage.getObject(Server.class, new Request(new Columns.All()));
+        server.setEmailEnabled(mailManager.getEmailEnabled());
+        User user = permissionsService.getUser(getUserId());
+        if (user != null && user.getAdministrator()) {
+            server.setStorageSpace(Log.getStorageSpace());
+        }
+        return server;
     }
 
     @PUT
     public Response update(Server entity) throws StorageException {
-        Context.getPermissionsManager().checkAdmin(getUserId());
-        Context.getPermissionsManager().updateServer(entity);
+        permissionsService.checkAdmin(getUserId());
         LogAction.edit(getUserId(), entity);
         return Response.ok(entity).build();
     }
@@ -60,11 +79,17 @@ public class ServerResource extends BaseResource {
     @Path("geocode")
     @GET
     public String geocode(@QueryParam("latitude") double latitude, @QueryParam("longitude") double longitude) {
-        if (Context.getGeocoder() != null) {
-            return Context.getGeocoder().getAddress(latitude, longitude, null);
+        if (geocoder != null) {
+            return geocoder.getAddress(latitude, longitude, null);
         } else {
             throw new RuntimeException("Reverse geocoding is not enabled");
         }
+    }
+
+    @Path("timezones")
+    @GET
+    public Collection<String> timezones() {
+        return Arrays.asList(TimeZone.getAvailableIDs());
     }
 
 }

@@ -27,6 +27,24 @@ public final class BufferUtil {
     private BufferUtil() {
     }
 
+    public static int readSignedMagnitudeInt(ByteBuf buffer) {
+        long value = buffer.readUnsignedInt();
+        int result = (int) BitUtil.to(value, 31);
+        return BitUtil.check(value, 31) ? -result : result;
+    }
+
+    public static int indexOf(ByteBuf buffer, int fromIndex, int toIndex, byte value, int count) {
+        int startIndex = fromIndex;
+        for (int i = 0; i < count; i++) {
+            int result = buffer.indexOf(startIndex, toIndex, value);
+            if (result < 0 || i == count - 1) {
+                return result;
+            }
+            startIndex = result + 1;
+        }
+        return -1;
+    }
+
     public static int indexOf(String needle, ByteBuf haystack) {
         return indexOf(needle, haystack, haystack.readerIndex(), haystack.writerIndex());
     }

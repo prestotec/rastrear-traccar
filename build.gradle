@@ -49,11 +49,12 @@ dependencies {
     implementation "io.netty:netty-all:4.1.66.Final"
     implementation "org.slf4j:slf4j-jdk14:2.0.0-alpha6"
     implementation "com.google.inject:guice:$guiceVersion"
-    implementation "com.google.inject.extensions:guice-assistedinject:$guiceVersion"
+    implementation "com.google.inject.extensions:guice-servlet:$guiceVersion"
     implementation "org.owasp.encoder:encoder:1.2.3"
     implementation "org.glassfish:javax.json:1.1.4"
     implementation "org.eclipse.jetty:jetty-server:$jettyVersion"
     implementation "org.eclipse.jetty:jetty-servlet:$jettyVersion"
+    implementation "org.eclipse.jetty:jetty-servlets:$jettyVersion"
     implementation "org.eclipse.jetty:jetty-webapp:$jettyVersion"
     implementation "org.eclipse.jetty:jetty-jndi:$jettyVersion"
     implementation "org.eclipse.jetty:jetty-proxy:$jettyVersion"
@@ -83,6 +84,7 @@ dependencies {
     implementation "javax.activation:activation:1.1.1"
     implementation "com.amazonaws:aws-java-sdk-sns:1.12.141"
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.mockito:mockito-core:3.+"
 }
 
 task copyDependencies(type: Copy) {
@@ -95,7 +97,7 @@ jar {
     manifest {
         attributes(
                 "Main-Class": "org.traccar.Main",
-                "Implementation-Version": "4.15",
+                "Implementation-Version": "5.0",
                 "Class-Path": configurations.runtimeClasspath.files.collect { "lib/$it.name" }.join(" "))
     }
 }
