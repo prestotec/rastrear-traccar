@@ -1,5 +1,8 @@
 FROM alpine:3.15
 
+WORKDIR /rastrear
+COPY --from=build-env /rastrear
+
 RUN set -ex && \
     apk add --no-cache --no-progress openjdk11-jre-headless wget && \
     apk del wget
