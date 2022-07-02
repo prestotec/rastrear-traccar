@@ -1,7 +1,4 @@
-FROM adoptopenjdk:11-jre-hotspot-focal
-
+FROM openjdk:8
 ADD target/tracker-server.jar tracker-server.jar
-
-ENTRYPOINT ["java", "-Xms512m", "-Xmx512m", "-Djava.net.preferIPv4Stack=true"]
-
-CMD ["-jar", "tracker-server.jar", "conf/traccar.xml"]
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","target/tracker-server.jar", "conf/traccar.xml"]
