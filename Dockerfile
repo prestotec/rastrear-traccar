@@ -1,4 +1,4 @@
 FROM openjdk:8
-ADD target/Spring-docker.jar Spring-docker.jar
+ADD target/tracker-server.jar tracker-server.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","Spring-docker.jar"]
+CMD ["-jar", "tracker-server.jar", "conf/traccar.xml"]
