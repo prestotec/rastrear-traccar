@@ -9,6 +9,5 @@ RUN ./gradlew assemble
 ENTRYPOINT ["java", "-Xms512m", "-Xmx512m", "-Djava.net.preferIPv4Stack=true"]
 
 ADD target/tracker-server.jar tracker-server.jar
-ADD conf/traccar.xml traccar.xml
 
 CMD ["-jar", "tracker-server.jar", "conf/traccar.xml"]
