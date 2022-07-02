@@ -1,5 +1,7 @@
 FROM alpine:3.15
 
+WORKDIR /
+
 RUN set -ex && \
     apk add --no-cache --no-progress openjdk11-jre-headless wget && \
     apk del wget
