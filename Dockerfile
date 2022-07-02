@@ -1,6 +1,6 @@
 FROM alpine:3.15
 
-WORKDIR target
+WORKDIR /target
 
 RUN set -ex && \
     apk add --no-cache --no-progress openjdk11-jre-headless wget && \
